@@ -1,6 +1,6 @@
 import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, formRespostas, InsertFormResposta } from "../drizzle/schema";
+import { InsertUser, users, formRespostas, InsertFormResposta, auditLog } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -155,6 +155,84 @@ export async function contarRespostas() {
     return result.length;
   } catch (error) {
     console.error("[Database] Failed to count responses:", error);
+    throw error;
+  }
+}
+
+// Funções para deleção segura com auditoria
+export async function obterRespostaPorId(id: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    const result = await db
+      .select()
+      .from(formRespostas)
+      .where(eq(formRespostas.id, id))
+      .limit(1);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("[Database] Failed to fetch response by id:", error);
+    throw error;
+  }
+}
+
+export async function deletarRespostaComAuditoria(
+  id: number,
+  motivo?: string,
+  deletadoPor?: string
+) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    // 1. Obter dados completos antes de deletar (backup)
+    const resposta = await obterRespostaPorId(id);
+    if (!resposta) {
+      throw new Error(`Resposta com ID ${id} não encontrada`);
+    }
+
+    // 2. Registrar na auditoria
+    const auditEntry = {
+      acao: "DELETE",
+      tabela: "form_respostas",
+      registroId: id,
+      dadosBackup: JSON.stringify(resposta),
+      motivo: motivo || "Sem motivo especificado",
+      deletadoPor: deletadoPor || "Sistema",
+    };
+
+    await db.insert(auditLog).values(auditEntry);
+
+    // 3. Deletar o registro
+    await db.delete(formRespostas).where(eq(formRespostas.id, id));
+
+    return { success: true, message: "Resposta deletada com sucesso e auditada" };
+  } catch (error) {
+    console.error("[Database] Failed to delete response:", error);
+    throw error;
+  }
+}
+
+// Obter histórico de deleções
+export async function obterHistoricoAuditoria() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    const historico = await db
+      .select()
+      .from(auditLog)
+      .orderBy(desc(auditLog.criadoEm));
+    return historico;
+  } catch (error) {
+    console.error("[Database] Failed to fetch audit history:", error);
     throw error;
   }
 }

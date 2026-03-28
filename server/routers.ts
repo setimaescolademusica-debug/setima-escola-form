@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { criarFormResposta, obterTodasAsRespostas, obterRespostasPorPagina, contarRespostas } from "./db";
+import { criarFormResposta, obterTodasAsRespostas, obterRespostasPorPagina, contarRespostas, deletarRespostaComAuditoria, obterHistoricoAuditoria } from "./db";
 import { exportarParaCSV, exportarParaExcel } from "./export";
 
 export const appRouter = router({
@@ -100,6 +100,24 @@ export const appRouter = router({
       const buffer = await exportarParaExcel();
       const base64 = buffer.toString('base64');
       return { data: base64, filename: `respostas-setima-${new Date().toISOString().split('T')[0]}.xlsx` };
+    }),
+
+    // Deletar resposta com auditoria
+    deletarResposta: publicProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          motivo: z.string().optional(),
+          deletadoPor: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return await deletarRespostaComAuditoria(input.id, input.motivo, input.deletadoPor);
+      }),
+
+    // Obter histórico de deleções
+    obterHistoricoAuditoria: publicProcedure.query(async () => {
+      return await obterHistoricoAuditoria();
     }),
   }),
 });

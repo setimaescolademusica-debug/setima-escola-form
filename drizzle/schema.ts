@@ -43,3 +43,18 @@ export const formRespostas = mysqlTable("form_respostas", {
 
 export type FormResposta = typeof formRespostas.$inferSelect;
 export type InsertFormResposta = typeof formRespostas.$inferInsert;
+
+// Tabela para auditoria de deleções
+export const auditLog = mysqlTable("audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  acao: varchar("acao", { length: 50 }).notNull(), // "DELETE", "RESTORE", etc
+  tabela: varchar("tabela", { length: 100 }).notNull(), // "form_respostas"
+  registroId: int("registro_id").notNull(), // ID do registro deletado
+  dadosBackup: text("dados_backup").notNull(), // JSON com dados completos antes da deleção
+  motivo: text("motivo"), // Motivo da deleção
+  deletadoPor: varchar("deletado_por", { length: 255 }), // Email/nome de quem deletou
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLog.$inferSelect;
+export type InsertAuditLog = typeof auditLog.$inferInsert;

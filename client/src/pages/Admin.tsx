@@ -2,8 +2,9 @@ import { useAuth } from '@/_core/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { trpc } from '@/lib/trpc';
-import { Download, FileText, Table } from 'lucide-react';
+import { Download, FileText, Table, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -11,9 +12,11 @@ export default function Admin() {
   const { user, isAuthenticated } = useAuth();
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
+  const [deleteMotivo, setDeleteMotivo] = useState('');
 
   // Queries
-  const { data: respostasData } = trpc.form.obterTodasAsRespostas.useQuery();
+  const { data: respostasData, refetch: refetchRespostas } = trpc.form.obterTodasAsRespostas.useQuery();
   const { data: totalData } = trpc.form.contarRespostas.useQuery();
   const exportCSVMutation = trpc.form.exportarCSV.useQuery(undefined, {
     enabled: false,
@@ -21,6 +24,7 @@ export default function Admin() {
   const exportExcelMutation = trpc.form.exportarExcel.useQuery(undefined, {
     enabled: false,
   });
+  const deletarRespostaMutation = trpc.form.deletarResposta.useMutation();
 
   // Funções de exportação
   const handleExportarCSV = async () => {
@@ -74,6 +78,27 @@ export default function Admin() {
     } finally {
       setIsExporting(false);
       setShowExportDialog(false);
+    }
+  };
+
+  // Função para deletar resposta
+  const handleDeleteResposta = async () => {
+    if (!selectedDeleteId) return;
+
+    try {
+      await deletarRespostaMutation.mutateAsync({
+        id: selectedDeleteId,
+        motivo: deleteMotivo || 'Deletado manualmente',
+        deletadoPor: user?.email || 'Admin',
+      });
+      
+      toast.success('Resposta deletada com sucesso!');
+      setSelectedDeleteId(null);
+      setDeleteMotivo('');
+      refetchRespostas();
+    } catch (error) {
+      toast.error('Erro ao deletar resposta');
+      console.error(error);
     }
   };
 
@@ -164,7 +189,7 @@ export default function Admin() {
         <Card>
           <CardHeader>
             <CardTitle>Respostas Recentes</CardTitle>
-            <CardDescription>Últimas respostas do formulário de intenção de matrícula</CardDescription>
+            <CardDescription>Últimas respostas do formulário de intenção de matrícula - Clique no ícone de lixo para deletar</CardDescription>
           </CardHeader>
           <CardContent>
             {respostasData && respostasData.length > 0 ? (
@@ -177,6 +202,7 @@ export default function Admin() {
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Instrumento</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Horário</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Dias</th>
+                      <th className="text-center py-3 px-4 font-semibold text-foreground">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -190,6 +216,16 @@ export default function Admin() {
                           <span className="text-xs bg-[#FCA311]/10 text-[#FCA311] px-2 py-1 rounded">
                             {Array.isArray(resposta.diasDisponiveis) ? resposta.diasDisponiveis.length : 0} dias
                           </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedDeleteId(resposta.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -228,6 +264,40 @@ export default function Admin() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Dialog para Confirmação de Deleção */}
+      <AlertDialog open={selectedDeleteId !== null} onOpenChange={(open) => {
+        if (!open) setSelectedDeleteId(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deletar Resposta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja deletar esta resposta? Esta ação não pode ser desfeita, mas os dados serão armazenados no histórico de auditoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">Motivo da Deleção (opcional):</label>
+            <input
+              type="text"
+              placeholder="Ex: Teste do sistema, Candidato não real, etc"
+              value={deleteMotivo}
+              onChange={(e) => setDeleteMotivo(e.target.value)}
+              className="w-full mt-2 px-3 py-2 border border-border rounded-md text-sm"
+            />
+          </div>
+          <div className="flex gap-3">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteResposta}
+              disabled={deletarRespostaMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deletarRespostaMutation.isPending ? 'Deletando...' : 'Deletar'}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
