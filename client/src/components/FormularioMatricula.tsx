@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Music, Check } from 'lucide-react';
+import { trpc } from '@/lib/trpc';
 
 interface FormData {
   nomeCompleto: string;
@@ -123,6 +124,9 @@ export default function FormularioMatricula() {
   const [enviado, setEnviado] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
+  // Mutation para enviar resposta
+  const enviarRespostaMutation = trpc.form.enviarResposta.useMutation();
+
   // Determinar quais perguntas mostrar baseado nas respostas anteriores
   const perguntasVisiveis = perguntas.filter((p) => {
     if (p.id === 'outroInstrumento') {
@@ -195,33 +199,18 @@ export default function FormularioMatricula() {
   const enviarFormulario = async () => {
     setCarregando(true);
     try {
-      // Preparar dados para envio
-      const dadosEnvio = {
-        nome: formData.nomeCompleto,
+      // Enviar para o banco de dados via tRPC
+      await enviarRespostaMutation.mutateAsync({
+        nomeCompleto: formData.nomeCompleto,
         whatsapp: formData.whatsapp,
         possuiInstrumento: formData.possuiInstrumento,
         instrumento: formData.instrumento === 'Outros' ? formData.outroInstrumento : formData.instrumento,
-        classificacaoVocal: formData.classificacaoVocal || 'N/A',
-        diasSemana: formData.diasSemana.join(', '),
-        horario: formData.horario,
-        observacoes: formData.observacoes || 'Nenhuma',
-        dataEnvio: new Date().toLocaleString('pt-BR'),
-      };
-
-      // Enviar para Netlify Forms (se configurado)
-      const formElement = document.getElementById('formulario-setima') as HTMLFormElement;
-      if (formElement) {
-        const formDataEnvio = new FormData(formElement);
-        Object.entries(dadosEnvio).forEach(([key, value]) => {
-          formDataEnvio.set(key, String(value));
-        });
-
-        await fetch('/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(formDataEnvio as any).toString(),
-        });
-      }
+        instrumentoCustomizado: formData.instrumento === 'Outros' ? formData.outroInstrumento : undefined,
+        classificacaoVocal: formData.classificacaoVocal || undefined,
+        diasDisponiveis: formData.diasSemana,
+        melhorHorario: formData.horario,
+        observacoes: formData.observacoes || undefined,
+      });
 
       setEnviado(true);
     } catch (erro) {
@@ -352,61 +341,39 @@ export default function FormularioMatricula() {
           {perguntaAtual.tipo === 'textarea' && (
             <textarea
               placeholder={perguntaAtual.placeholder}
-              value={formData[perguntaAtual.id as keyof FormData] as string}
+              value={formData.observacoes}
               onChange={(e) => handleMudancaValor(e.target.value)}
-              rows={4}
               className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+              rows={4}
               disabled={carregando}
             />
           )}
 
-          {/* Mensagem de Erro */}
+          {/* Mensagem de erro */}
           {erros[perguntaAtual.id] && (
-            <p className="text-red-500 text-sm mt-3">{erros[perguntaAtual.id]}</p>
+            <p className="text-red-500 text-sm mt-4">{erros[perguntaAtual.id]}</p>
           )}
 
-          {erros.geral && <p className="text-red-500 text-sm mt-3">{erros.geral}</p>}
-
-          {/* Botões de Navegação */}
+          {/* Botões de navegação */}
           <div className="flex gap-4 mt-8">
             <button
               onClick={handleAnterior}
               disabled={etapaAtual === 0 || carregando}
-              className="flex-1 px-6 py-3 rounded-lg border-2 border-border text-foreground font-medium transition-all hover:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 bg-input border border-border rounded-lg text-foreground hover:bg-input/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
             >
               Anterior
             </button>
             <button
               onClick={handleProxima}
               disabled={carregando}
-              className="flex-1 setima-button flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center gap-2"
             >
-              {carregando ? 'Enviando...' : etapaAtual === perguntasVisiveis.length - 1 ? 'Finalizar' : 'Próxima'}
-              {!carregando && <ChevronRight className="w-5 h-5" />}
+              {etapaAtual === perguntasVisiveis.length - 1 ? 'Finalizar' : 'Próxima'}
+              {etapaAtual < perguntasVisiveis.length - 1 && <ChevronRight className="w-4 h-4" />}
             </button>
           </div>
         </div>
       </div>
-
-      {/* Form oculto para Netlify */}
-      <form
-        id="formulario-setima"
-        name="formulario-setima"
-        method="POST"
-        data-netlify="true"
-        style={{ display: 'none' }}
-      >
-        <input type="hidden" name="form-name" value="formulario-setima" />
-        <input type="hidden" name="nome" />
-        <input type="hidden" name="whatsapp" />
-        <input type="hidden" name="possuiInstrumento" />
-        <input type="hidden" name="instrumento" />
-        <input type="hidden" name="classificacaoVocal" />
-        <input type="hidden" name="diasSemana" />
-        <input type="hidden" name="horario" />
-        <input type="hidden" name="observacoes" />
-        <input type="hidden" name="dataEnvio" />
-      </form>
     </div>
   );
 }

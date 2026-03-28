@@ -1,0 +1,93 @@
+import { COOKIE_NAME } from "@shared/const";
+import { getSessionCookieOptions } from "./_core/cookies";
+import { systemRouter } from "./_core/systemRouter";
+import { publicProcedure, router } from "./_core/trpc";
+import { z } from "zod";
+import { criarFormResposta, obterTodasAsRespostas, obterRespostasPorPagina, contarRespostas } from "./db";
+
+export const appRouter = router({
+  system: systemRouter,
+  auth: router({
+    me: publicProcedure.query(opts => opts.ctx.user),
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return {
+        success: true,
+      } as const;
+    }),
+  }),
+
+  // Endpoints para o formulário de matrícula
+  form: router({
+    // Enviar resposta do formulário
+    enviarResposta: publicProcedure
+      .input(
+        z.object({
+          nomeCompleto: z.string().min(3),
+          whatsapp: z.string(),
+          possuiInstrumento: z.string(),
+          instrumento: z.string(),
+          instrumentoCustomizado: z.string().optional(),
+          classificacaoVocal: z.string().optional(),
+          diasDisponiveis: z.array(z.string()),
+          melhorHorario: z.string(),
+          observacoes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const resposta = await criarFormResposta({
+          nomeCompleto: input.nomeCompleto,
+          whatsapp: input.whatsapp,
+          possuiInstrumento: input.possuiInstrumento,
+          instrumento: input.instrumento,
+          instrumentoCustomizado: input.instrumentoCustomizado,
+          classificacaoVocal: input.classificacaoVocal,
+          diasDisponiveis: JSON.stringify(input.diasDisponiveis),
+          melhorHorario: input.melhorHorario,
+          observacoes: input.observacoes,
+        });
+        return { success: true, message: 'Resposta enviada com sucesso!' };
+      }),
+
+    // Obter todas as respostas
+    obterTodasAsRespostas: publicProcedure.query(async () => {
+      const respostas = await obterTodasAsRespostas();
+      return respostas.map(r => ({
+        ...r,
+        diasDisponiveis: JSON.parse(r.diasDisponiveis),
+      }));
+    }),
+
+    // Obter respostas com paginação
+    obterRespostasPaginadas: publicProcedure
+      .input(
+        z.object({
+          pagina: z.number().int().positive().default(1),
+          limite: z.number().int().positive().default(10),
+        })
+      )
+      .query(async ({ input }) => {
+        const respostas = await obterRespostasPorPagina(input.pagina, input.limite);
+        const total = await contarRespostas();
+        return {
+          respostas: respostas.map(r => ({
+            ...r,
+            diasDisponiveis: JSON.parse(r.diasDisponiveis),
+          })),
+          total,
+          pagina: input.pagina,
+          limite: input.limite,
+          totalPaginas: Math.ceil(total / input.limite),
+        };
+      }),
+
+    // Contar total de respostas
+    contarRespostas: publicProcedure.query(async () => {
+      const total = await contarRespostas();
+      return { total };
+    }),
+  }),
+});
+
+export type AppRouter = typeof appRouter;
