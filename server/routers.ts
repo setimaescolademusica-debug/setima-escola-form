@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { criarFormResposta, obterTodasAsRespostas, obterRespostasPorPagina, contarRespostas } from "./db";
+import { exportarParaCSV, exportarParaExcel } from "./export";
 
 export const appRouter = router({
   system: systemRouter,
@@ -86,6 +87,19 @@ export const appRouter = router({
     contarRespostas: publicProcedure.query(async () => {
       const total = await contarRespostas();
       return { total };
+    }),
+
+    // Exportar para CSV
+    exportarCSV: publicProcedure.query(async () => {
+      const csv = await exportarParaCSV();
+      return { csv, filename: `respostas-setima-${new Date().toISOString().split('T')[0]}.csv` };
+    }),
+
+    // Exportar para Excel
+    exportarExcel: publicProcedure.query(async () => {
+      const buffer = await exportarParaExcel();
+      const base64 = buffer.toString('base64');
+      return { data: base64, filename: `respostas-setima-${new Date().toISOString().split('T')[0]}.xlsx` };
     }),
   }),
 });
