@@ -218,6 +218,28 @@ export async function deletarRespostaComAuditoria(
   }
 }
 
+// Atualizar status da resposta
+export async function atualizarStatusResposta(
+  id: number,
+  novoStatus: "novo" | "msg_enviada" | "aula_marcada" | "matriculado"
+) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    const result = await db
+      .update(formRespostas)
+      .set({ status: novoStatus, atualizadoEm: new Date() })
+      .where(eq(formRespostas.id, id));
+    return { success: true, message: "Status atualizado com sucesso" };
+  } catch (error) {
+    console.error("[Database] Failed to update status:", error);
+    throw error;
+  }
+}
+
 // Obter histórico de deleções
 export async function obterHistoricoAuditoria() {
   const db = await getDb();

@@ -1,0 +1,1 @@
+ALTER TABLE `form_respostas` ADD `status` enum('novo','msg_enviada','aula_marcada','matriculado') DEFAULT 'novo' NOT NULL;

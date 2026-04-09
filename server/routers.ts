@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { criarFormResposta, obterTodasAsRespostas, obterRespostasPorPagina, contarRespostas, deletarRespostaComAuditoria, obterHistoricoAuditoria } from "./db";
+import { criarFormResposta, obterTodasAsRespostas, obterRespostasPorPagina, contarRespostas, deletarRespostaComAuditoria, obterHistoricoAuditoria, atualizarStatusResposta } from "./db";
 import { exportarParaCSV, exportarParaExcel } from "./export";
 
 export const appRouter = router({
@@ -119,6 +119,18 @@ export const appRouter = router({
     obterHistoricoAuditoria: publicProcedure.query(async () => {
       return await obterHistoricoAuditoria();
     }),
+
+    // Atualizar status da resposta
+    atualizarStatus: publicProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          status: z.enum(["novo", "msg_enviada", "aula_marcada", "matriculado"]),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return await atualizarStatusResposta(input.id, input.status);
+      }),
   }),
 });
 

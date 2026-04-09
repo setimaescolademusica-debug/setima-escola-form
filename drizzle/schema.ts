@@ -37,6 +37,7 @@ export const formRespostas = mysqlTable("form_respostas", {
   diasDisponiveis: text("dias_disponiveis").notNull(), // JSON array: ["Segunda", "Terça", ...]
   melhorHorario: varchar("melhor_horario", { length: 50 }).notNull(), // "Manhã", "Tarde", "Noite"
   observacoes: text("observacoes"), // Campo opcional
+  status: mysqlEnum("status", ["novo", "msg_enviada", "aula_marcada", "matriculado"]).default("novo").notNull(),
   criadoEm: timestamp("criado_em").defaultNow().notNull(),
   atualizadoEm: timestamp("atualizado_em").defaultNow().onUpdateNow().notNull(),
 });

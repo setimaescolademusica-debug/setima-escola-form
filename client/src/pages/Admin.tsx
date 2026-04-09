@@ -1,19 +1,26 @@
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { trpc } from '@/lib/trpc';
-import { Download, FileText, Table, Trash2 } from 'lucide-react';
+import { Download, FileText, Table, Trash2, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-export default function Admin() {
+// Mapeamento de cores para status
+const statusConfig = {
+  novo: { label: 'Novo', color: 'bg-gray-100 text-gray-800', bgColor: 'bg-gray-50' },
+  msg_enviada: { label: 'Msg enviada', color: 'bg-yellow-100 text-yellow-800', bgColor: 'bg-yellow-50' },
+  aula_marcada: { label: 'Aula Marcada', color: 'bg-blue-100 text-blue-800', bgColor: 'bg-blue-50' },
+  matriculado: { label: 'Matriculado', color: 'bg-green-100 text-green-800', bgColor: 'bg-green-50' },
+};
 
+export default function Admin() {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
   const [deleteMotivo, setDeleteMotivo] = useState('');
+  const [openStatusMenuId, setOpenStatusMenuId] = useState<number | null>(null);
 
   // Queries
   const { data: respostasData, refetch: refetchRespostas } = trpc.form.obterTodasAsRespostas.useQuery();
@@ -25,6 +32,7 @@ export default function Admin() {
     enabled: false,
   });
   const deletarRespostaMutation = trpc.form.deletarResposta.useMutation();
+  const atualizarStatusMutation = trpc.form.atualizarStatus.useMutation();
 
   // Funções de exportação
   const handleExportarCSV = async () => {
@@ -102,7 +110,21 @@ export default function Admin() {
     }
   };
 
-
+  // Função para atualizar status
+  const handleUpdateStatus = async (id: number, novoStatus: 'novo' | 'msg_enviada' | 'aula_marcada' | 'matriculado') => {
+    try {
+      await atualizarStatusMutation.mutateAsync({
+        id,
+        status: novoStatus,
+      });
+      toast.success('Status atualizado com sucesso!');
+      setOpenStatusMenuId(null);
+      refetchRespostas();
+    } catch (error) {
+      toast.error('Erro ao atualizar status');
+      console.error(error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -178,7 +200,7 @@ export default function Admin() {
         <Card>
           <CardHeader>
             <CardTitle>Respostas Recentes</CardTitle>
-            <CardDescription>Últimas respostas do formulário de intenção de matrícula - Clique no ícone de lixo para deletar</CardDescription>
+            <CardDescription>Últimas respostas do formulário de intenção de matrícula</CardDescription>
           </CardHeader>
           <CardContent>
             {respostasData && respostasData.length > 0 ? (
@@ -190,7 +212,7 @@ export default function Admin() {
                       <th className="text-left py-3 px-4 font-semibold text-foreground">WhatsApp</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Instrumento</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Horário</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Dias</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Status</th>
                       <th className="text-center py-3 px-4 font-semibold text-foreground">Ações</th>
                     </tr>
                   </thead>
@@ -202,9 +224,31 @@ export default function Admin() {
                         <td className="py-3 px-4">{resposta.instrumento}</td>
                         <td className="py-3 px-4">{resposta.melhorHorario}</td>
                         <td className="py-3 px-4">
-                          <span className="text-xs bg-[#FCA311]/10 text-[#FCA311] px-2 py-1 rounded">
-                            {Array.isArray(resposta.diasDisponiveis) ? resposta.diasDisponiveis.length : 0} dias
-                          </span>
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenStatusMenuId(openStatusMenuId === resposta.id ? null : resposta.id)}
+                              className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 ${statusConfig[resposta.status as keyof typeof statusConfig]?.color || statusConfig.novo.color}`}
+                            >
+                              {statusConfig[resposta.status as keyof typeof statusConfig]?.label || 'Novo'}
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                            
+                            {/* Menu de status */}
+                            {openStatusMenuId === resposta.id && (
+                              <div className="absolute top-full mt-1 left-0 bg-white border border-border rounded shadow-lg z-10 min-w-[150px]">
+                                {Object.entries(statusConfig).map(([key, value]) => (
+                                  <button
+                                    key={key}
+                                    onClick={() => handleUpdateStatus(resposta.id, key as any)}
+                                    disabled={atualizarStatusMutation.isPending}
+                                    className={`w-full text-left px-3 py-2 text-xs hover:${value.bgColor} ${resposta.status === key ? 'font-bold' : ''}`}
+                                  >
+                                    {value.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-4 text-center">
                           <Button
