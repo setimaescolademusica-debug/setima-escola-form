@@ -9,10 +9,10 @@ import { toast } from 'sonner';
 
 // Mapeamento de cores para status
 const statusConfig = {
-  novo: { label: 'Novo', color: 'bg-gray-100 text-gray-800', bgColor: 'bg-gray-50' },
-  msg_enviada: { label: 'Msg enviada', color: 'bg-yellow-100 text-yellow-800', bgColor: 'bg-yellow-50' },
-  aula_marcada: { label: 'Aula Marcada', color: 'bg-blue-100 text-blue-800', bgColor: 'bg-blue-50' },
-  matriculado: { label: 'Matriculado', color: 'bg-green-100 text-green-800', bgColor: 'bg-green-50' },
+  novo: { label: 'Novo', color: 'bg-gray-200 text-gray-900 font-semibold', bgColor: 'bg-gray-100 hover:bg-gray-200' },
+  msg_enviada: { label: 'Msg enviada', color: 'bg-yellow-300 text-yellow-900 font-semibold', bgColor: 'bg-yellow-200 hover:bg-yellow-300' },
+  aula_marcada: { label: 'Aula Marcada', color: 'bg-blue-300 text-blue-900 font-semibold', bgColor: 'bg-blue-200 hover:bg-blue-300' },
+  matriculado: { label: 'Matriculado', color: 'bg-green-300 text-green-900 font-semibold', bgColor: 'bg-green-200 hover:bg-green-300' },
 };
 
 export default function Admin() {
