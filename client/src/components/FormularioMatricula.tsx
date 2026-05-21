@@ -244,7 +244,7 @@ export default function FormularioMatricula() {
                 value={resposta || ''}
                 onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
                 placeholder={pergunta.placeholder}
-                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg text-gray-900"
               />
             )}
 
@@ -255,7 +255,7 @@ export default function FormularioMatricula() {
                 value={resposta || ''}
                 onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
                 placeholder={pergunta.placeholder}
-                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg text-gray-900"
               />
             )}
 
@@ -266,7 +266,7 @@ export default function FormularioMatricula() {
                 value={resposta || ''}
                 onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
                 placeholder={pergunta.placeholder}
-                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg text-gray-900"
               />
             )}
 
@@ -276,7 +276,7 @@ export default function FormularioMatricula() {
                 type="date"
                 value={resposta || ''}
                 onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg text-gray-900"
               />
             )}
 
@@ -285,7 +285,7 @@ export default function FormularioMatricula() {
               <select
                 value={resposta || ''}
                 onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg text-gray-900"
               >
                 <option value="">Selecione uma opção</option>
                 {pergunta.opcoes?.map((opcao) => (
@@ -357,7 +357,7 @@ export default function FormularioMatricula() {
                   }
                 }}
                 placeholder={pergunta.placeholder}
-                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg resize-none"
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg resize-none text-gray-900"
                 rows={4}
               />
             )}

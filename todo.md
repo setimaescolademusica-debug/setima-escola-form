@@ -8,6 +8,7 @@
 - [x] Status management system (Novo, Msg enviada, Aula Marcada, Matriculado)
 - [x] Secure deletion with audit logs
 - [x] tRPC API endpoints for form submission and admin actions
+- [x] Fixed input text color visibility (changed to dark gray for readability)
 
 ## In Progress
 - [ ] Run full end-to-end tests for form submission
