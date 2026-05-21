@@ -1,376 +1,397 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, Music, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { toast } from 'sonner';
 
-interface FormData {
-  nomeCompleto: string;
-  whatsapp: string;
-  possuiInstrumento: string;
-  instrumento: string;
-  outroInstrumento: string;
-  classificacaoVocal: string;
-  diasSemana: string[];
-  horario: string;
-  observacoes: string;
-}
-
-interface Pergunta {
-  id: string;
-  titulo: string;
-  tipo: 'texto' | 'telefone' | 'selecao' | 'multipla' | 'textarea';
-  opcoes?: string[];
-  placeholder?: string;
-  validacao?: (valor: any) => boolean;
-  mensagemErro?: string;
-}
-
-const perguntas: Pergunta[] = [
+const PERGUNTAS = [
   {
-    id: 'nomeCompleto',
-    titulo: 'Qual é o seu nome completo?',
+    id: 1,
+    titulo: 'Qual é o seu nome?',
     tipo: 'texto',
+    campo: 'nomeResponsavel',
     placeholder: 'Digite seu nome completo',
-    validacao: (v) => v.trim().length >= 3,
-    mensagemErro: 'Por favor, digite um nome válido (mínimo 3 caracteres)',
+    validacao: (valor: string) => valor.length >= 3,
   },
   {
-    id: 'whatsapp',
-    titulo: 'Qual é o seu WhatsApp com DDD?',
-    tipo: 'telefone',
+    id: 2,
+    titulo: 'Qual é o seu email?',
+    tipo: 'email',
+    campo: 'emailResponsavel',
+    placeholder: 'seu.email@exemplo.com',
+    validacao: (valor: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor),
+  },
+  {
+    id: 3,
+    titulo: 'Qual é o seu WhatsApp? (com DDD)',
+    tipo: 'tel',
+    campo: 'whatsapp',
     placeholder: '(11) 99999-9999',
-    validacao: (v) => /^\(\d{2}\)\s?\d{4,5}-\d{4}$/.test(v),
-    mensagemErro: 'Por favor, digite um telefone válido (XX) 9XXXX-XXXX',
+    validacao: (valor: string) => valor.replace(/\D/g, '').length >= 11,
   },
   {
-    id: 'possuiInstrumento',
-    titulo: 'Você já possui o instrumento na sua casa?',
-    tipo: 'selecao',
-    opcoes: ['Sim', 'Não', 'Não tenho certeza'],
-  },
-  {
-    id: 'instrumento',
-    titulo: 'Qual é o seu instrumento?',
-    tipo: 'selecao',
-    opcoes: [
-      'Canto / Técnica Vocal',
-      'Piano / Teclado',
-      'Violão / Guitarra',
-      'Saxofone',
-      'Clarineta',
-      'Violino',
-      'Outros',
-    ],
-  },
-  {
-    id: 'outroInstrumento',
-    titulo: 'Qual é o seu instrumento?',
+    id: 4,
+    titulo: 'Em qual cidade você mora?',
     tipo: 'texto',
-    placeholder: 'Digite o nome do seu instrumento',
-    validacao: (v) => v.trim().length >= 2,
-    mensagemErro: 'Por favor, digite um instrumento válido',
+    campo: 'cidade',
+    placeholder: 'Digite sua cidade',
+    validacao: (valor: string) => valor.length >= 2,
   },
   {
-    id: 'classificacaoVocal',
-    titulo: 'Você já sabe qual é a sua classificação vocal?',
-    tipo: 'selecao',
-    opcoes: [
-      'Não sei',
-      'Soprano',
-      'Mezzo-soprano',
-      'Contralto',
-      'Tenor',
-      'Barítono',
-      'Baixo',
-    ],
+    id: 5,
+    titulo: 'Qual é o estado (UF)?',
+    tipo: 'select',
+    campo: 'estado',
+    opcoes: ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'],
+    validacao: (valor: string) => valor.length === 2,
   },
   {
-    id: 'diasSemana',
-    titulo: 'Quais dias da semana você pode fazer a aula?',
-    tipo: 'multipla',
-    opcoes: ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'],
+    id: 6,
+    titulo: 'Qual é o nome da criança?',
+    tipo: 'texto',
+    campo: 'nomeCrianca',
+    placeholder: 'Digite o nome da criança',
+    validacao: (valor: string) => valor.length >= 2,
   },
   {
-    id: 'horario',
-    titulo: 'Qual é o melhor horário para as suas aulas?',
-    tipo: 'selecao',
-    opcoes: [
-      'Manhã (08h às 12h)',
-      'Tarde (13h às 17h)',
-      'Noite (18h às 21h)',
-    ],
+    id: 7,
+    titulo: 'Qual é a data de nascimento da criança?',
+    tipo: 'date',
+    campo: 'dataNascimento',
+    validacao: (valor: string) => valor.length > 0,
   },
   {
-    id: 'observacoes',
-    titulo: 'Você tem alguma dúvida ou informação relevante para nós?',
+    id: 8,
+    titulo: 'Em qual ano escolar a criança está?',
+    tipo: 'select',
+    campo: 'anoEscolar',
+    opcoes: ['Pré-escolar', '1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '6º ano', '7º ano', '8º ano', '9º ano', '1º Ensino Médio', '2º Ensino Médio', '3º Ensino Médio'],
+    validacao: (valor: string) => valor.length > 0,
+  },
+  {
+    id: 9,
+    titulo: 'Qual é o nível atual de inglês da criança?',
+    tipo: 'radio',
+    campo: 'nivelIngles',
+    opcoes: ['Iniciante (não fala inglês)', 'Básico (algumas palavras)', 'Intermediário (consegue conversar)', 'Avançado (fluente)'],
+    validacao: (valor: string) => valor.length > 0,
+  },
+  {
+    id: 10,
+    titulo: 'Qual é o objetivo principal? (máximo 2)',
+    tipo: 'checkbox',
+    campo: 'objetivos',
+    opcoes: ['Preparar para exames (TOEFL, Cambridge)', 'Melhorar pronúncia', 'Ganhar confiança para conversar', 'Apoio escolar', 'Diversão e aprendizado'],
+    maxSelecoes: 2,
+    validacao: (valor: any[]) => Array.isArray(valor) && valor.length > 0 && valor.length <= 2,
+  },
+  {
+    id: 11,
+    titulo: 'Quais dias você pode fazer aula? (máximo 3)',
+    tipo: 'checkbox',
+    campo: 'diasDisponiveis',
+    opcoes: ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'],
+    maxSelecoes: 3,
+    validacao: (valor: any[]) => Array.isArray(valor) && valor.length > 0 && valor.length <= 3,
+  },
+  {
+    id: 12,
+    titulo: 'Qual horário prefere?',
+    tipo: 'radio',
+    campo: 'horarioPreferido',
+    opcoes: ['Manhã (08h-12h)', 'Tarde (13h-17h)', 'Noite (18h-21h)'],
+    validacao: (valor: string) => valor.length > 0,
+  },
+  {
+    id: 13,
+    titulo: 'Qual metodologia prefere? (máximo 2)',
+    tipo: 'checkbox',
+    campo: 'metodologiaPreferida',
+    opcoes: ['Aulas conversacionais', 'Jogos e atividades lúdicas', 'Filmes e séries', 'Música e canções', 'Estrutura gramatical'],
+    maxSelecoes: 2,
+    validacao: (valor: any[]) => Array.isArray(valor) && valor.length > 0 && valor.length <= 2,
+  },
+  {
+    id: 14,
+    titulo: 'Há algo especial sobre seu filho que devemos saber?',
     tipo: 'textarea',
-    placeholder: 'Digite suas observações (opcional)',
+    campo: 'informacoesAdicionais',
+    placeholder: 'Digite aqui (máximo 100 palavras)',
+    maxPalavras: 100,
+    validacao: () => true,
+  },
+  {
+    id: 15,
+    titulo: 'Há alguma restrição ou preferência que não mencionou?',
+    tipo: 'textarea',
+    campo: 'restricoes',
+    placeholder: 'Digite aqui (opcional)',
+    validacao: () => true,
   },
 ];
 
 export default function FormularioMatricula() {
-  const [etapaAtual, setEtapaAtual] = useState(0);
-  const [formData, setFormData] = useState<FormData>({
-    nomeCompleto: '',
-    whatsapp: '',
-    possuiInstrumento: '',
-    instrumento: '',
-    outroInstrumento: '',
-    classificacaoVocal: '',
-    diasSemana: [],
-    horario: '',
-    observacoes: '',
-  });
-  const [erros, setErros] = useState<Record<string, string>>({});
+  const [perguntaAtual, setPerguntaAtual] = useState(0);
+  const [respostas, setRespostas] = useState<Record<string, any>>({});
   const [enviado, setEnviado] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
-  // Mutation para enviar resposta
-  const enviarRespostaMutation = trpc.form.enviarResposta.useMutation();
-
-  // Determinar quais perguntas mostrar baseado nas respostas anteriores
-  const perguntasVisiveis = perguntas.filter((p) => {
-    if (p.id === 'outroInstrumento') {
-      return formData.instrumento === 'Outros';
-    }
-    if (p.id === 'classificacaoVocal') {
-      return formData.instrumento === 'Canto / Técnica Vocal';
-    }
-    return true;
+  const enviarRespostaMutation = trpc.form.enviarResposta.useMutation({
+    onSuccess: () => {
+      setEnviado(true);
+      toast.success('Matrícula enviada com sucesso!');
+    },
+    onError: (error) => {
+      toast.error('Erro ao enviar matrícula: ' + error.message);
+    },
+    onSettled: () => {
+      setCarregando(false);
+    },
   });
 
-  const perguntaAtual = perguntasVisiveis[etapaAtual];
-  const progresso = ((etapaAtual + 1) / perguntasVisiveis.length) * 100;
+  const pergunta = PERGUNTAS[perguntaAtual];
+  const resposta = respostas[pergunta.campo];
+  const podeAvancar = resposta !== undefined && resposta !== null && pergunta.validacao(resposta);
 
-  // Formatar telefone
-  const formatarTelefone = (valor: string) => {
-    const apenasNumeros = valor.replace(/\D/g, '');
-    if (apenasNumeros.length <= 2) {
-      return `(${apenasNumeros}`;
-    }
-    if (apenasNumeros.length <= 7) {
-      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2)}`;
-    }
-    return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 7)}-${apenasNumeros.slice(7, 11)}`;
-  };
-
-  const handleMudancaValor = (valor: any) => {
-    const novoFormData = { ...formData, [perguntaAtual.id]: valor };
-    setFormData(novoFormData);
-    setErros({ ...erros, [perguntaAtual.id]: '' });
-  };
-
-  const handleProxima = () => {
-    const valor = formData[perguntaAtual.id as keyof FormData];
-
-    // Validação
-    if (perguntaAtual.validacao && !perguntaAtual.validacao(valor)) {
-      setErros({ ...erros, [perguntaAtual.id]: perguntaAtual.mensagemErro || 'Campo inválido' });
-      return;
-    }
-
-    if (
-      (perguntaAtual.tipo === 'selecao' || perguntaAtual.tipo === 'telefone' || perguntaAtual.tipo === 'texto') &&
-      !valor
-    ) {
-      setErros({ ...erros, [perguntaAtual.id]: 'Por favor, responda esta pergunta' });
-      return;
-    }
-
-    if (perguntaAtual.tipo === 'multipla' && (!Array.isArray(valor) || valor.length === 0)) {
-      setErros({ ...erros, [perguntaAtual.id]: 'Por favor, selecione pelo menos um dia' });
-      return;
-    }
-
-    // Ir para próxima pergunta
-    if (etapaAtual < perguntasVisiveis.length - 1) {
-      setEtapaAtual(etapaAtual + 1);
-    } else {
-      // Enviar formulário
-      enviarFormulario();
+  const handleProximo = () => {
+    if (podeAvancar && perguntaAtual < PERGUNTAS.length - 1) {
+      setPerguntaAtual(perguntaAtual + 1);
     }
   };
 
   const handleAnterior = () => {
-    if (etapaAtual > 0) {
-      setEtapaAtual(etapaAtual - 1);
+    if (perguntaAtual > 0) {
+      setPerguntaAtual(perguntaAtual - 1);
     }
   };
 
-  const enviarFormulario = async () => {
+  const handleEnviar = async () => {
     setCarregando(true);
     try {
-      // Enviar para o banco de dados via tRPC
       await enviarRespostaMutation.mutateAsync({
-        nomeCompleto: formData.nomeCompleto,
-        whatsapp: formData.whatsapp,
-        possuiInstrumento: formData.possuiInstrumento,
-        instrumento: formData.instrumento === 'Outros' ? formData.outroInstrumento : formData.instrumento,
-        instrumentoCustomizado: formData.instrumento === 'Outros' ? formData.outroInstrumento : undefined,
-        classificacaoVocal: formData.classificacaoVocal || undefined,
-        diasDisponiveis: formData.diasSemana,
-        melhorHorario: formData.horario,
-        observacoes: formData.observacoes || undefined,
+        nomeResponsavel: respostas.nomeResponsavel || '',
+        emailResponsavel: respostas.emailResponsavel || '',
+        whatsapp: respostas.whatsapp || '',
+        cidade: respostas.cidade || '',
+        estado: respostas.estado || '',
+        nomeCrianca: respostas.nomeCrianca || '',
+        dataNascimento: respostas.dataNascimento || '',
+        anoEscolar: respostas.anoEscolar || '',
+        nivelIngles: respostas.nivelIngles || '',
+        objetivos: respostas.objetivos || [],
+        diasDisponiveis: respostas.diasDisponiveis || [],
+        horarioPreferido: respostas.horarioPreferido || '',
+        metodologiaPreferida: respostas.metodologiaPreferida || [],
+        informacoesAdicionais: respostas.informacoesAdicionais || '',
+        restricoes: respostas.restricoes || '',
       });
-
-      setEnviado(true);
-    } catch (erro) {
-      console.error('Erro ao enviar formulário:', erro);
-      setErros({ ...erros, geral: 'Erro ao enviar formulário. Tente novamente.' });
-    } finally {
-      setCarregando(false);
+    } catch (error) {
+      console.error('Erro:', error);
     }
   };
 
   if (enviado) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="setima-card max-w-2xl w-full text-center">
-          <div className="mb-6 flex justify-center">
-            <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center">
-              <Check className="w-8 h-8 text-accent-foreground" />
-            </div>
-          </div>
-          <h1 className="text-3xl mb-4">Obrigado!</h1>
-          <p className="text-lg mb-6 text-muted-foreground">
-            Sua intenção de matrícula foi registrada com sucesso.
+      <div className="min-h-screen bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">✨</div>
+          <h1 className="text-3xl font-bold text-blue-900 mb-2">Sucesso!</h1>
+          <p className="text-gray-700 mb-6">
+            Sua matrícula foi enviada com sucesso! Um membro da equipe Mooni entrará em contato em breve para confirmar os detalhes da primeira aula.
           </p>
-          <p className="text-base mb-8">
-            Um membro da nossa equipe pedagógica entrará em contato com você em breve para confirmar o dia e horário da sua primeira aula.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Agradecemos o interesse na Sétima Escola de Música! 🎵
-          </p>
+          <p className="text-sm text-gray-600">Obrigado por escolher a Mooni! 🎉</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col p-4">
-      {/* Header com Logo */}
-      <div className="flex justify-center mb-8 mt-4">
-        <div className="flex items-center gap-3">
-          <Music className="w-8 h-8 text-accent" />
-          <h1 className="text-2xl font-black italic text-accent">Sétima</h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">🌟 Mooni</h1>
+          <p className="text-blue-100">A marca da imaginação</p>
         </div>
-      </div>
 
-      {/* Barra de Progresso */}
-      <div className="max-w-2xl w-full mx-auto mb-8">
-        <div className="setima-progress-bar">
-          <div className="setima-progress-fill" style={{ width: `${progresso}%` }}></div>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          Pergunta {etapaAtual + 1} de {perguntasVisiveis.length}
-        </p>
-      </div>
-
-      {/* Card da Pergunta */}
-      <div className="flex-1 flex items-center justify-center">
-        <div className="setima-card max-w-2xl w-full">
-          <h2 className="text-2xl mb-8">{perguntaAtual.titulo}</h2>
-
-          {/* Renderizar campo baseado no tipo */}
-          {perguntaAtual.tipo === 'texto' && (
-            <input
-              type="text"
-              placeholder={perguntaAtual.placeholder}
-              value={formData[perguntaAtual.id as keyof FormData] as string}
-              onChange={(e) => handleMudancaValor(e.target.value)}
-              className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-              disabled={carregando}
-            />
-          )}
-
-          {perguntaAtual.tipo === 'telefone' && (
-            <input
-              type="tel"
-              placeholder={perguntaAtual.placeholder}
-              value={formData[perguntaAtual.id as keyof FormData] as string}
-              onChange={(e) => handleMudancaValor(formatarTelefone(e.target.value))}
-              maxLength={15}
-              className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-              disabled={carregando}
-            />
-          )}
-
-          {perguntaAtual.tipo === 'selecao' && (
-            <div className="space-y-3">
-              {perguntaAtual.opcoes?.map((opcao) => (
-                <button
-                  key={opcao}
-                  onClick={() => handleMudancaValor(opcao)}
-                  className={`w-full px-4 py-3 rounded-lg border-2 transition-all text-left font-medium ${
-                    formData[perguntaAtual.id as keyof FormData] === opcao
-                      ? 'bg-accent border-accent text-accent-foreground'
-                      : 'bg-input border-border text-foreground hover:border-accent'
-                  }`}
-                  disabled={carregando}
-                >
-                  {opcao}
-                </button>
-              ))}
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          {/* Barra de Progresso */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-semibold text-gray-600">
+                Pergunta {perguntaAtual + 1} de {PERGUNTAS.length}
+              </span>
+              <span className="text-sm font-semibold text-blue-600">
+                {Math.round(((perguntaAtual + 1) / PERGUNTAS.length) * 100)}%
+              </span>
             </div>
-          )}
-
-          {perguntaAtual.tipo === 'multipla' && (
-            <div className="space-y-3">
-              {perguntaAtual.opcoes?.map((opcao) => (
-                <button
-                  key={opcao}
-                  onClick={() => {
-                    const diasAtuais = formData.diasSemana;
-                    const novosDias = diasAtuais.includes(opcao)
-                      ? diasAtuais.filter((d) => d !== opcao)
-                      : [...diasAtuais, opcao];
-                    handleMudancaValor(novosDias);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg border-2 transition-all text-left font-medium ${
-                    formData.diasSemana.includes(opcao)
-                      ? 'bg-accent border-accent text-accent-foreground'
-                      : 'bg-input border-border text-foreground hover:border-accent'
-                  }`}
-                  disabled={carregando}
-                >
-                  {opcao}
-                </button>
-              ))}
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((perguntaAtual + 1) / PERGUNTAS.length) * 100}%` }}
+              />
             </div>
-          )}
+          </div>
 
-          {perguntaAtual.tipo === 'textarea' && (
-            <textarea
-              placeholder={perguntaAtual.placeholder}
-              value={formData.observacoes}
-              onChange={(e) => handleMudancaValor(e.target.value)}
-              className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-              rows={4}
-              disabled={carregando}
-            />
-          )}
+          {/* Pergunta */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-blue-900 mb-6">{pergunta.titulo}</h2>
 
-          {/* Mensagem de erro */}
-          {erros[perguntaAtual.id] && (
-            <p className="text-red-500 text-sm mt-4">{erros[perguntaAtual.id]}</p>
-          )}
+            {/* Input Texto */}
+            {pergunta.tipo === 'texto' && (
+              <input
+                type="text"
+                value={resposta || ''}
+                onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
+                placeholder={pergunta.placeholder}
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+              />
+            )}
 
-          {/* Botões de navegação */}
-          <div className="flex gap-4 mt-8">
+            {/* Input Email */}
+            {pergunta.tipo === 'email' && (
+              <input
+                type="email"
+                value={resposta || ''}
+                onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
+                placeholder={pergunta.placeholder}
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+              />
+            )}
+
+            {/* Input Tel */}
+            {pergunta.tipo === 'tel' && (
+              <input
+                type="tel"
+                value={resposta || ''}
+                onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
+                placeholder={pergunta.placeholder}
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+              />
+            )}
+
+            {/* Input Date */}
+            {pergunta.tipo === 'date' && (
+              <input
+                type="date"
+                value={resposta || ''}
+                onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+              />
+            )}
+
+            {/* Select */}
+            {pergunta.tipo === 'select' && (
+              <select
+                value={resposta || ''}
+                onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg"
+              >
+                <option value="">Selecione uma opção</option>
+                {pergunta.opcoes?.map((opcao) => (
+                  <option key={opcao} value={opcao}>
+                    {opcao}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Radio */}
+            {pergunta.tipo === 'radio' && (
+              <div className="space-y-3">
+                {pergunta.opcoes?.map((opcao) => (
+                  <label key={opcao} className="flex items-center p-3 border-2 border-blue-200 rounded-lg cursor-pointer hover:bg-blue-50 transition">
+                    <input
+                      type="radio"
+                      name={pergunta.campo}
+                      value={opcao}
+                      checked={resposta === opcao}
+                      onChange={(e) => setRespostas({ ...respostas, [pergunta.campo]: e.target.value })}
+                      className="w-4 h-4 text-blue-500"
+                    />
+                    <span className="ml-3 text-gray-700">{opcao}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Checkbox */}
+            {pergunta.tipo === 'checkbox' && (
+              <div className="space-y-3">
+                {pergunta.opcoes?.map((opcao) => (
+                  <label key={opcao} className="flex items-center p-3 border-2 border-blue-200 rounded-lg cursor-pointer hover:bg-blue-50 transition">
+                    <input
+                      type="checkbox"
+                      checked={resposta && Array.isArray(resposta) && resposta.includes(opcao)}
+                      onChange={(e) => {
+                        const novasRespostas = Array.isArray(resposta) ? [...resposta] : [];
+                        if (e.target.checked) {
+                          if (novasRespostas.length < (pergunta.maxSelecoes || 999)) {
+                            novasRespostas.push(opcao);
+                          }
+                        } else {
+                          const index = novasRespostas.indexOf(opcao);
+                          if (index > -1) {
+                            novasRespostas.splice(index, 1);
+                          }
+                        }
+                        setRespostas({ ...respostas, [pergunta.campo]: novasRespostas });
+                      }}
+                      className="w-4 h-4 text-blue-500"
+                    />
+                    <span className="ml-3 text-gray-700">{opcao}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Textarea */}
+            {pergunta.tipo === 'textarea' && (
+              <textarea
+                value={resposta || ''}
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  const palavras = valor.trim().split(/\s+/).length;
+                  if (pergunta.maxPalavras === undefined || palavras <= pergunta.maxPalavras) {
+                    setRespostas({ ...respostas, [pergunta.campo]: valor });
+                  }
+                }}
+                placeholder={pergunta.placeholder}
+                className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-lg resize-none"
+                rows={4}
+              />
+            )}
+          </div>
+
+          {/* Botões */}
+          <div className="flex gap-3">
             <button
               onClick={handleAnterior}
-              disabled={etapaAtual === 0 || carregando}
-              className="flex-1 px-4 py-3 bg-input border border-border rounded-lg text-foreground hover:bg-input/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+              disabled={perguntaAtual === 0}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
+              <ChevronLeft size={20} />
               Anterior
             </button>
-            <button
-              onClick={handleProxima}
-              disabled={carregando}
-              className="flex-1 px-4 py-3 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center gap-2"
-            >
-              {etapaAtual === perguntasVisiveis.length - 1 ? 'Finalizar' : 'Próxima'}
-              {etapaAtual < perguntasVisiveis.length - 1 && <ChevronRight className="w-4 h-4" />}
-            </button>
+
+            {perguntaAtual === PERGUNTAS.length - 1 ? (
+              <button
+                onClick={handleEnviar}
+                disabled={!podeAvancar || carregando}
+                className="flex-1 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {carregando ? 'Enviando...' : 'Finalizar'}
+              </button>
+            ) : (
+              <button
+                onClick={handleProximo}
+                disabled={!podeAvancar}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                Próximo
+                <ChevronRight size={20} />
+              </button>
+            )}
           </div>
         </div>
       </div>

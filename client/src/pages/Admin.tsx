@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -31,306 +30,277 @@ export default function Admin() {
   const exportExcelMutation = trpc.form.exportarExcel.useQuery(undefined, {
     enabled: false,
   });
-  const deletarRespostaMutation = trpc.form.deletarResposta.useMutation();
-  const atualizarStatusMutation = trpc.form.atualizarStatus.useMutation();
 
-  // Funções de exportação
-  const handleExportarCSV = async () => {
-    try {
-      setIsExporting(true);
-      const { data } = await exportCSVMutation.refetch();
-      if (data) {
-        const element = document.createElement('a');
-        element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(data.csv));
-        element.setAttribute('download', data.filename);
-        element.style.display = 'none';
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-        toast.success(`Arquivo ${data.filename} baixado com sucesso!`);
-      }
-    } catch (error) {
-      toast.error('Erro ao exportar para CSV');
-      console.error(error);
-    } finally {
-      setIsExporting(false);
-      setShowExportDialog(false);
-    }
-  };
+  // Mutations
+  const atualizarStatusMutation = trpc.form.atualizarStatus.useMutation({
+    onSuccess: () => {
+      refetchRespostas();
+      setOpenStatusMenuId(null);
+      toast.success('Status atualizado com sucesso!');
+    },
+    onError: () => {
+      toast.error('Erro ao atualizar status');
+    },
+  });
 
-  const handleExportarExcel = async () => {
-    try {
-      setIsExporting(true);
-      const { data } = await exportExcelMutation.refetch();
-      if (data) {
-        const binaryString = atob(data.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = window.URL.createObjectURL(blob);
-        const element = document.createElement('a');
-        element.setAttribute('href', url);
-        element.setAttribute('download', data.filename);
-        element.style.display = 'none';
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-        window.URL.revokeObjectURL(url);
-        toast.success(`Arquivo ${data.filename} baixado com sucesso!`);
-      }
-    } catch (error) {
-      toast.error('Erro ao exportar para Excel');
-      console.error(error);
-    } finally {
-      setIsExporting(false);
-      setShowExportDialog(false);
-    }
-  };
-
-  // Função para deletar resposta
-  const handleDeleteResposta = async () => {
-    if (!selectedDeleteId) return;
-
-    try {
-      await deletarRespostaMutation.mutateAsync({
-        id: selectedDeleteId,
-        motivo: deleteMotivo || 'Deletado manualmente',
-        deletadoPor: 'Admin'
-      });
-      
-      toast.success('Resposta deletada com sucesso!');
+  const deletarRespostaMutation = trpc.form.deletarResposta.useMutation({
+    onSuccess: () => {
+      refetchRespostas();
       setSelectedDeleteId(null);
       setDeleteMotivo('');
-      refetchRespostas();
-    } catch (error) {
+      toast.success('Resposta deletada com sucesso!');
+    },
+    onError: () => {
       toast.error('Erro ao deletar resposta');
-      console.error(error);
+    },
+  });
+
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      const result = await exportCSVMutation.refetch();
+      if (result.data) {
+        const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `mooni-matriculas-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('CSV exportado com sucesso!');
+      }
+    } catch (error) {
+      toast.error('Erro ao exportar CSV');
+    } finally {
+      setIsExporting(false);
+      setShowExportDialog(false);
     }
   };
 
-  // Função para atualizar status
-  const handleUpdateStatus = async (id: number, novoStatus: 'novo' | 'msg_enviada' | 'aula_marcada' | 'matriculado') => {
+  const handleExportExcel = async () => {
+    setIsExporting(true);
     try {
-      await atualizarStatusMutation.mutateAsync({
-        id,
-        status: novoStatus,
-      });
-      toast.success('Status atualizado com sucesso!');
-      setOpenStatusMenuId(null);
-      refetchRespostas();
+      const result = await exportExcelMutation.refetch();
+      if (result.data) {
+        const blob = new Blob([result.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `mooni-matriculas-${new Date().toISOString().split('T')[0]}.xlsx`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Excel exportado com sucesso!');
+      }
     } catch (error) {
-      toast.error('Erro ao atualizar status');
-      console.error(error);
+      toast.error('Erro ao exportar Excel');
+    } finally {
+      setIsExporting(false);
+      setShowExportDialog(false);
     }
   };
+
+  const respostas = respostasData || [];
+  const total = totalData || 0;
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-8">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">🎵 Painel de Administração</h1>
-          <p className="text-muted-foreground">Sétima Escola de Música - Gerenciamento de Respostas</p>
+          <h1 className="text-4xl font-bold text-blue-900 mb-2">Painel Mooni</h1>
+          <p className="text-blue-700">Gerenciar matrículas de aulas de inglês</p>
         </div>
 
-        {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="border-l-4 border-l-[#FCA311]">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card className="bg-white border-blue-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total de Respostas</CardTitle>
+              <CardTitle className="text-sm font-medium text-blue-600">Total de Matrículas</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#FCA311]">{totalData?.total || 0}</div>
+              <div className="text-3xl font-bold text-blue-900">{total}</div>
             </CardContent>
           </Card>
-
-          <Card className="border-l-4 border-l-[#FCA311]">
+          <Card className="bg-white border-blue-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Candidatos</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Novo</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#FCA311]">{respostasData?.length || 0}</div>
+              <div className="text-3xl font-bold text-gray-900">{respostas.filter(r => r.status === 'novo').length}</div>
             </CardContent>
           </Card>
-
-          <Card className="border-l-4 border-l-[#FCA311]">
+          <Card className="bg-white border-blue-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Conversão</CardTitle>
+              <CardTitle className="text-sm font-medium text-yellow-600">Msg Enviada</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#FCA311]">100%</div>
+              <div className="text-3xl font-bold text-yellow-900">{respostas.filter(r => r.status === 'msg_enviada').length}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border-blue-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-green-600">Matriculado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-900">{respostas.filter(r => r.status === 'matriculado').length}</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Ações de Exportação */}
-        <Card className="mb-8">
+        {/* Export Buttons */}
+        <div className="flex gap-3 mb-8">
+          <button
+            onClick={() => setShowExportDialog(true)}
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition"
+          >
+            <Download size={20} />
+            Exportar
+          </button>
+        </div>
+
+        {/* Export Dialog */}
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogContent className="bg-white">
+            <DialogHeader>
+              <DialogTitle>Exportar Dados</DialogTitle>
+              <DialogDescription>Escolha o formato para exportar as matrículas</DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-3">
+              <button
+                onClick={handleExportCSV}
+                disabled={isExporting}
+                className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
+              >
+                <FileText size={20} />
+                CSV
+              </button>
+              <button
+                onClick={handleExportExcel}
+                disabled={isExporting}
+                className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
+              >
+                <Table size={20} />
+                Excel
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Table */}
+        <Card className="bg-white border-blue-200">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Download className="w-5 h-5" />
-              Exportar Dados
-            </CardTitle>
-            <CardDescription>Baixe os dados das respostas em diferentes formatos</CardDescription>
+            <CardTitle>Últimas Matrículas</CardTitle>
+            <CardDescription>Respostas do formulário de matrícula</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                onClick={() => setShowExportDialog(true)}
-                className="bg-[#FCA311] hover:bg-[#FCA311]/90 text-[#1A1B26]"
-                disabled={isExporting || !respostasData || respostasData.length === 0}
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Exportar CSV
-              </Button>
-              <Button
-                onClick={() => setShowExportDialog(true)}
-                className="bg-[#FCA311] hover:bg-[#FCA311]/90 text-[#1A1B26]"
-                disabled={isExporting || !respostasData || respostasData.length === 0}
-              >
-                <Table className="w-4 h-4 mr-2" />
-                Exportar Excel
-              </Button>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-blue-200 bg-blue-50">
+                    <th className="py-3 px-4 text-left font-semibold text-blue-900">Responsável</th>
+                    <th className="py-3 px-4 text-left font-semibold text-blue-900">Criança</th>
+                    <th className="py-3 px-4 text-left font-semibold text-blue-900">Email</th>
+                    <th className="py-3 px-4 text-left font-semibold text-blue-900">WhatsApp</th>
+                    <th className="py-3 px-4 text-left font-semibold text-blue-900">Nível</th>
+                    <th className="py-3 px-4 text-left font-semibold text-blue-900">Status</th>
+                    <th className="py-3 px-4 text-left font-semibold text-blue-900">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {respostas.map((resposta, index) => (
+                    <tr key={index} className="border-b border-blue-100 hover:bg-blue-50">
+                      <td className="py-3 px-4">{resposta.nomeResponsavel}</td>
+                      <td className="py-3 px-4">{resposta.nomeCrianca}</td>
+                      <td className="py-3 px-4 text-xs text-gray-600">{resposta.emailResponsavel}</td>
+                      <td className="py-3 px-4">{resposta.whatsapp}</td>
+                      <td className="py-3 px-4 text-xs">{resposta.nivelIngles}</td>
+                      <td className="py-3 px-4">
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenStatusMenuId(openStatusMenuId === resposta.id ? null : resposta.id)}
+                            className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 ${statusConfig[resposta.status as keyof typeof statusConfig]?.color || statusConfig.novo.color}`}
+                          >
+                            {statusConfig[resposta.status as keyof typeof statusConfig]?.label || 'Novo'}
+                            <ChevronDown size={14} />
+                          </button>
+                          {openStatusMenuId === resposta.id && (
+                            <div className="absolute top-full left-0 mt-1 bg-white border border-blue-200 rounded-lg shadow-lg z-10 min-w-[150px]">
+                              {Object.entries(statusConfig).map(([key, config]) => (
+                                <button
+                                  key={key}
+                                  onClick={() => {
+                                    atualizarStatusMutation.mutate({
+                                      id: resposta.id,
+                                      status: key as any,
+                                    });
+                                  }}
+                                  className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 ${config.bgColor}`}
+                                >
+                                  {config.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => setSelectedDeleteId(resposta.id)}
+                          className="text-red-500 hover:text-red-700 transition"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
 
-        {/* Tabela de Respostas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Respostas Recentes</CardTitle>
-            <CardDescription>Últimas respostas do formulário de intenção de matrícula</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {respostasData && respostasData.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Nome</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">WhatsApp</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Instrumento</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Horário</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Status</th>
-                      <th className="text-center py-3 px-4 font-semibold text-foreground">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {respostasData.slice(0, 10).map((resposta, index) => (
-                      <tr key={index} className="border-b border-border hover:bg-muted/50">
-                        <td className="py-3 px-4">{resposta.nomeCompleto}</td>
-                        <td className="py-3 px-4">{resposta.whatsapp}</td>
-                        <td className="py-3 px-4">{resposta.instrumento}</td>
-                        <td className="py-3 px-4">{resposta.melhorHorario}</td>
-                        <td className="py-3 px-4">
-                          <div className="relative">
-                            <button
-                              onClick={() => setOpenStatusMenuId(openStatusMenuId === resposta.id ? null : resposta.id)}
-                              className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 ${statusConfig[resposta.status as keyof typeof statusConfig]?.color || statusConfig.novo.color}`}
-                            >
-                              {statusConfig[resposta.status as keyof typeof statusConfig]?.label || 'Novo'}
-                              <ChevronDown className="w-3 h-3" />
-                            </button>
-                            
-                            {/* Menu de status */}
-                            {openStatusMenuId === resposta.id && (
-                              <div className="absolute top-full mt-1 left-0 bg-white border border-border rounded shadow-lg z-10 min-w-[150px]">
-                                {Object.entries(statusConfig).map(([key, value]) => (
-                                  <button
-                                    key={key}
-                                    onClick={() => handleUpdateStatus(resposta.id, key as any)}
-                                    disabled={atualizarStatusMutation.isPending}
-                                    className={`w-full text-left px-3 py-2 text-xs hover:${value.bgColor} ${resposta.status === key ? 'font-bold' : ''}`}
-                                  >
-                                    {value.label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedDeleteId(resposta.id)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">Nenhuma resposta ainda</div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Delete Dialog */}
+        <AlertDialog open={selectedDeleteId !== null} onOpenChange={(open) => !open && setSelectedDeleteId(null)}>
+          <AlertDialogContent className="bg-white">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Deletar Matrícula</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja deletar esta matrícula? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Motivo (opcional)</label>
+              <textarea
+                value={deleteMotivo}
+                onChange={(e) => setDeleteMotivo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                placeholder="Por que está deletando?"
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-3">
+              <AlertDialogCancel className="flex-1">Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (selectedDeleteId) {
+                    deletarRespostaMutation.mutate({
+                      id: selectedDeleteId,
+                      motivo: deleteMotivo,
+                    });
+                  }
+                }}
+                className="flex-1 bg-red-500 hover:bg-red-600"
+              >
+                Deletar
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-
-      {/* Dialog de Exportação */}
-      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Escolha o Formato de Exportação</DialogTitle>
-            <DialogDescription>Selecione o formato desejado para baixar os dados</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <Button
-              onClick={handleExportarCSV}
-              disabled={isExporting}
-              className="bg-[#FCA311] hover:bg-[#FCA311]/90 text-[#1A1B26]"
-            >
-              {isExporting ? 'Exportando...' : 'Baixar como CSV'}
-            </Button>
-            <Button
-              onClick={handleExportarExcel}
-              disabled={isExporting}
-              className="bg-[#FCA311] hover:bg-[#FCA311]/90 text-[#1A1B26]"
-            >
-              {isExporting ? 'Exportando...' : 'Baixar como Excel'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Alert Dialog para Confirmação de Deleção */}
-      <AlertDialog open={selectedDeleteId !== null} onOpenChange={(open) => {
-        if (!open) setSelectedDeleteId(null);
-      }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Deletar Resposta?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja deletar esta resposta? Esta ação não pode ser desfeita, mas os dados serão armazenados no histórico de auditoria.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <label className="text-sm font-medium">Motivo da Deleção (opcional):</label>
-            <input
-              type="text"
-              placeholder="Ex: Teste do sistema, Candidato não real, etc"
-              value={deleteMotivo}
-              onChange={(e) => setDeleteMotivo(e.target.value)}
-              className="w-full mt-2 px-3 py-2 border border-border rounded-md text-sm"
-            />
-          </div>
-          <div className="flex gap-3">
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteResposta}
-              disabled={deletarRespostaMutation.isPending}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deletarRespostaMutation.isPending ? 'Deletando...' : 'Deletar'}
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -1,10 +1,10 @@
-import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { criarFormResposta, obterTodasAsRespostas, obterRespostasPorPagina, contarRespostas, deletarRespostaComAuditoria, obterHistoricoAuditoria, atualizarStatusResposta } from "./db";
 import { exportarParaCSV, exportarParaExcel } from "./export";
+import { COOKIE_NAME } from "@shared/const";
 
 export const appRouter = router({
   system: systemRouter,
@@ -19,34 +19,46 @@ export const appRouter = router({
     }),
   }),
 
-  // Endpoints para o formulário de matrícula
+  // Endpoints para o formulário de matrícula Mooni
   form: router({
     // Enviar resposta do formulário
     enviarResposta: publicProcedure
       .input(
         z.object({
-          nomeCompleto: z.string().min(3),
+          nomeResponsavel: z.string().min(3),
+          emailResponsavel: z.string().email(),
           whatsapp: z.string(),
-          possuiInstrumento: z.string(),
-          instrumento: z.string(),
-          instrumentoCustomizado: z.string().optional(),
-          classificacaoVocal: z.string().optional(),
+          cidade: z.string(),
+          estado: z.string(),
+          nomeCrianca: z.string(),
+          dataNascimento: z.string(),
+          anoEscolar: z.string(),
+          nivelIngles: z.string(),
+          objetivos: z.array(z.string()),
           diasDisponiveis: z.array(z.string()),
-          melhorHorario: z.string(),
-          observacoes: z.string().optional(),
+          horarioPreferido: z.string(),
+          metodologiaPreferida: z.array(z.string()),
+          informacoesAdicionais: z.string().optional(),
+          restricoes: z.string().optional(),
         })
       )
       .mutation(async ({ input }) => {
         const resposta = await criarFormResposta({
-          nomeCompleto: input.nomeCompleto,
+          nomeResponsavel: input.nomeResponsavel,
+          emailResponsavel: input.emailResponsavel,
           whatsapp: input.whatsapp,
-          possuiInstrumento: input.possuiInstrumento,
-          instrumento: input.instrumento,
-          instrumentoCustomizado: input.instrumentoCustomizado,
-          classificacaoVocal: input.classificacaoVocal,
+          cidade: input.cidade,
+          estado: input.estado,
+          nomeCrianca: input.nomeCrianca,
+          dataNascimento: input.dataNascimento,
+          anoEscolar: input.anoEscolar,
+          nivelIngles: input.nivelIngles,
+          objetivos: JSON.stringify(input.objetivos),
           diasDisponiveis: JSON.stringify(input.diasDisponiveis),
-          melhorHorario: input.melhorHorario,
-          observacoes: input.observacoes,
+          horarioPreferido: input.horarioPreferido,
+          metodologiaPreferida: JSON.stringify(input.metodologiaPreferida),
+          informacoesAdicionais: input.informacoesAdicionais,
+          restricoes: input.restricoes,
         });
         return { success: true, message: 'Resposta enviada com sucesso!' };
       }),
@@ -56,7 +68,9 @@ export const appRouter = router({
       const respostas = await obterTodasAsRespostas();
       return respostas.map(r => ({
         ...r,
+        objetivos: JSON.parse(r.objetivos),
         diasDisponiveis: JSON.parse(r.diasDisponiveis),
+        metodologiaPreferida: JSON.parse(r.metodologiaPreferida),
       }));
     }),
 
@@ -74,63 +88,65 @@ export const appRouter = router({
         return {
           respostas: respostas.map(r => ({
             ...r,
+            objetivos: JSON.parse(r.objetivos),
             diasDisponiveis: JSON.parse(r.diasDisponiveis),
+            metodologiaPreferida: JSON.parse(r.metodologiaPreferida),
           })),
           total,
           pagina: input.pagina,
           limite: input.limite,
-          totalPaginas: Math.ceil(total / input.limite),
         };
       }),
 
-    // Contar total de respostas
+    // Contar respostas
     contarRespostas: publicProcedure.query(async () => {
       const total = await contarRespostas();
-      return { total };
-    }),
-
-    // Exportar para CSV
-    exportarCSV: publicProcedure.query(async () => {
-      const csv = await exportarParaCSV();
-      return { csv, filename: `respostas-setima-${new Date().toISOString().split('T')[0]}.csv` };
-    }),
-
-    // Exportar para Excel
-    exportarExcel: publicProcedure.query(async () => {
-      const buffer = await exportarParaExcel();
-      const base64 = buffer.toString('base64');
-      return { data: base64, filename: `respostas-setima-${new Date().toISOString().split('T')[0]}.xlsx` };
+      return total;
     }),
 
     // Deletar resposta com auditoria
     deletarResposta: publicProcedure
       .input(
         z.object({
-          id: z.number().int().positive(),
+          id: z.number(),
           motivo: z.string().optional(),
-          deletadoPor: z.string().optional(),
         })
       )
       .mutation(async ({ input }) => {
-        return await deletarRespostaComAuditoria(input.id, input.motivo, input.deletadoPor);
+        await deletarRespostaComAuditoria(input.id, input.motivo);
+        return { success: true, message: 'Resposta deletada com sucesso!' };
       }),
 
-    // Obter histórico de deleções
+    // Obter histórico de auditoria
     obterHistoricoAuditoria: publicProcedure.query(async () => {
-      return await obterHistoricoAuditoria();
+      const historico = await obterHistoricoAuditoria();
+      return historico;
     }),
 
     // Atualizar status da resposta
     atualizarStatus: publicProcedure
       .input(
         z.object({
-          id: z.number().int().positive(),
-          status: z.enum(["novo", "msg_enviada", "aula_marcada", "matriculado"]),
+          id: z.number(),
+          status: z.enum(['novo', 'msg_enviada', 'aula_marcada', 'matriculado']),
         })
       )
       .mutation(async ({ input }) => {
-        return await atualizarStatusResposta(input.id, input.status);
+        await atualizarStatusResposta(input.id, input.status);
+        return { success: true, message: 'Status atualizado com sucesso!' };
       }),
+
+    // Exportar para CSV
+    exportarCSV: publicProcedure.query(async () => {
+      const csv = await exportarParaCSV();
+      return csv;
+    }),
+
+    // Exportar para Excel
+    exportarExcel: publicProcedure.query(async () => {
+      const excel = await exportarParaExcel();
+      return excel;
+    }),
   }),
 });
 
