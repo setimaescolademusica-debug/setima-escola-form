@@ -213,11 +213,11 @@ export default function Admin() {
                 <tbody>
                   {respostas.map((resposta, index) => (
                     <tr key={index} className="border-b border-blue-100 hover:bg-blue-50">
-                      <td className="py-3 px-4">{resposta.nomeResponsavel}</td>
-                      <td className="py-3 px-4">{resposta.nomeCrianca}</td>
-                      <td className="py-3 px-4 text-xs text-gray-600">{resposta.emailResponsavel}</td>
-                      <td className="py-3 px-4">{resposta.whatsapp}</td>
-                      <td className="py-3 px-4 text-xs">{resposta.nivelIngles}</td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">{resposta.nomeResponsavel}</td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">{resposta.nomeCrianca}</td>
+                      <td className="py-3 px-4 text-xs text-gray-900 font-medium">{resposta.emailResponsavel}</td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">{resposta.whatsapp}</td>
+                      <td className="py-3 px-4 text-xs text-gray-900 font-medium">{resposta.nivelIngles}</td>
                       <td className="py-3 px-4">
                         <div className="relative">
                           <button
