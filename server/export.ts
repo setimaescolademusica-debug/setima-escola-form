@@ -68,7 +68,7 @@ export async function exportarParaCSV(): Promise<string> {
 /**
  * Exportar respostas para Excel
  */
-export async function exportarParaExcel(): Promise<string> {
+export async function exportarParaExcel(): Promise<Buffer> {
   try {
     const respostas = await obterTodasAsRespostas();
     const dadosFormatados = formatarDadosParaExportacao(respostas);
@@ -82,10 +82,9 @@ export async function exportarParaExcel(): Promise<string> {
     const colWidths = Object.keys(dadosFormatados[0] || {}).map(() => 20);
     ws['!cols'] = colWidths.map(w => ({ wch: w }));
 
-    // Gerar buffer e converter para Base64
+    // Gerar e retornar buffer
     const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-    const base64 = (buffer as Buffer).toString('base64');
-    return base64;
+    return buffer as Buffer;
   } catch (error) {
     console.error('[Export] Erro ao exportar para Excel:', error);
     throw error;

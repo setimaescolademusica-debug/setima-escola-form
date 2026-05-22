@@ -10,7 +10,7 @@
 - [x] tRPC API endpoints for form submission and admin actions
 - [x] Fixed input text color visibility (changed to dark gray for readability)
 - [x] Fixed admin dashboard table contrast (changed text to dark gray for visibility)
-- [x] Fixed Excel export functionality (converted Buffer to Base64 for proper serialization)
+- [x] Fixed Excel export functionality (implemented dedicated Express routes for file downloads)
 
 ## In Progress
 - [ ] Run full end-to-end tests for form submission

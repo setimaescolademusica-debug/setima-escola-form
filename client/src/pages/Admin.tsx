@@ -24,12 +24,6 @@ export default function Admin() {
   // Queries
   const { data: respostasData, refetch: refetchRespostas } = trpc.form.obterTodasAsRespostas.useQuery();
   const { data: totalData } = trpc.form.contarRespostas.useQuery();
-  const exportCSVMutation = trpc.form.exportarCSV.useQuery(undefined, {
-    enabled: false,
-  });
-  const exportExcelMutation = trpc.form.exportarExcel.useQuery(undefined, {
-    enabled: false,
-  });
 
   // Mutations
   const atualizarStatusMutation = trpc.form.atualizarStatus.useMutation({
@@ -58,20 +52,22 @@ export default function Admin() {
   const handleExportCSV = async () => {
     setIsExporting(true);
     try {
-      const result = await exportCSVMutation.refetch();
-      if (result.data) {
-        const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `mooni-matriculas-${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('CSV exportado com sucesso!');
+      const response = await fetch('/api/export/csv');
+      if (!response.ok) {
+        throw new Error('Erro ao exportar CSV');
       }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `mooni-matriculas-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('CSV exportado com sucesso!');
     } catch (error) {
+      console.error('Erro ao exportar CSV:', error);
       toast.error('Erro ao exportar CSV');
     } finally {
       setIsExporting(false);
@@ -82,26 +78,22 @@ export default function Admin() {
   const handleExportExcel = async () => {
     setIsExporting(true);
     try {
-      const result = await exportExcelMutation.refetch();
-      if (result.data) {
-        // Decodificar Base64 para Uint8Array
-        const binaryString = atob(result.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `mooni-matriculas-${new Date().toISOString().split('T')[0]}.xlsx`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Excel exportado com sucesso!');
+      const response = await fetch('/api/export/excel');
+      if (!response.ok) {
+        throw new Error('Erro ao exportar Excel');
       }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `mooni-matriculas-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Excel exportado com sucesso!');
     } catch (error) {
+      console.error('Erro ao exportar Excel:', error);
       toast.error('Erro ao exportar Excel');
     } finally {
       setIsExporting(false);

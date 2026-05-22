@@ -35,6 +35,34 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  
+  // Rotas de download de arquivos
+  app.get('/api/export/excel', async (req, res) => {
+    try {
+      const { exportarParaExcel } = await import('../export');
+      const buffer = await exportarParaExcel();
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="mooni-matriculas-${new Date().toISOString().split('T')[0]}.xlsx"`);
+      res.send(buffer);
+    } catch (error) {
+      console.error('[Export] Erro ao exportar Excel:', error);
+      res.status(500).json({ error: 'Erro ao exportar Excel' });
+    }
+  });
+  
+  app.get('/api/export/csv', async (req, res) => {
+    try {
+      const { exportarParaCSV } = await import('../export');
+      const csv = await exportarParaCSV();
+      res.setHeader('Content-Type', 'text/csv;charset=utf-8;');
+      res.setHeader('Content-Disposition', `attachment; filename="mooni-matriculas-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('[Export] Erro ao exportar CSV:', error);
+      res.status(500).json({ error: 'Erro ao exportar CSV' });
+    }
+  });
+  
   // tRPC API
   app.use(
     "/api/trpc",
